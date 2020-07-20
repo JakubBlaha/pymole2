@@ -1,3 +1,5 @@
+from __future__ import division
+
 import pygame
 import pygame.locals
 import numpy as np
@@ -16,7 +18,7 @@ GHOST_NUMBER     = 2
 def load_images(fname):
     images = pygame.image.load(fname).convert_alpha()
     w, h = images.get_size()
-    return np.array([[images.subsurface((i*fsize, j*fsize, fsize, fsize)) for j in range(h/fsize)] for i in range(w/fsize)])
+    return np.array([[images.subsurface((i*fsize, j*fsize, fsize, fsize)) for j in range(h//fsize)] for i in range(w//fsize)])
 
 pygame.init()
 screen = pygame.display.set_mode((480, 320))
@@ -106,7 +108,7 @@ while not game_over:
           screen.blit(tile, (x*fsize, y*fsize-16))
       
     for p, (x, y) in enumerate(player_position):
-      screen.blit(i_players[p][player_orientation*4+player_phase/2], player_position[p]*fsize-[0,16])
+      screen.blit(i_players[p][player_orientation*4+player_phase//2], player_position[p]*fsize-[0,16])
 
     pygame.display.flip()
     clock.tick(15)
