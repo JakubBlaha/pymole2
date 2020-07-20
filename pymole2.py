@@ -108,11 +108,7 @@ while not game_over:
           screen.blit(tile, (x*fsize, y*fsize-16))
       
     for p, (x, y) in enumerate(player_position):
-<<<<<<< HEAD
       screen.blit(i_players[p][player_orientation*4+player_phase//2], player_position[p]*fsize-[0,16])
-=======
-      screen.blit(i_players[p][player_orientation*4+player_phase/2], player_position[p]*fsize-[0,16])
->>>>>>> 31d3db514fffd0a7287b72603a02caa0a9c41efb
 
     pygame.display.flip()
     clock.tick(15)
