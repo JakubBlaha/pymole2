@@ -17,7 +17,7 @@ def load_images(fname):
  return np.array([[images.subsurface((i*fsize, j*fsize, fsize, fsize)) for j in range(h//fsize)] for i in range(w//fsize)])
 
 pygame.init()
-screen = pygame.display.set_mode((480, 320))
+screen = pygame.display.set_mode((640, 480))
 clock = pygame.time.Clock()
 #pygamekeys = {key: value for key, value in pygame.locals.__dict__.items() if key.startswith('K_')}
 
