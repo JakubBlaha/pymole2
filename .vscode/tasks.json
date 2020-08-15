@@ -6,7 +6,7 @@
         {
             "label": "Run",
             "type": "shell",
-            "command": "${config:python.pythonPath} pymole2.py",
+            "command": "${config:python.pythonPath} pymole.py",
             "problemMatcher": [],
             "group": {
                 "kind": "build",
