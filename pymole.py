@@ -1,4 +1,6 @@
 ##!/usr/bin/env python
+import os
+
 import pygame
 from pygame.locals import *
 import numpy as np
@@ -16,17 +18,27 @@ def load_images(fname):
  w, h = images.get_size()
  return np.array([[images.subsurface((i*fsize, j*fsize, fsize, fsize)) for j in range(h//fsize)] for i in range(w//fsize)])
 
+def load_asset(fname):
+	return load_images('assets/' + fname)
+
 pygame.init()
 screen = pygame.display.set_mode((640, 480))
 clock = pygame.time.Clock()
 #pygamekeys = {key: value for key, value in pygame.locals.__dict__.items() if key.startswith('K_')}
 
-i_abomb, i_afire, i_bomb, i_floor, i_rock = load_images("items.png")[0]
-i_walls = load_images("walls.png")[0]
-i_players = load_images("players.png")
-i_monsters = load_images("monsters.png")
-i_fires = load_images("fires.png")
-i_explosion = load_images("explosion.png")[0]
+# i_abomb, i_afire, i_bomb, i_floor, i_rock = load_images("items.png")[0]
+# i_walls = load_images("walls.png")[0]
+# i_players = load_images("players.png")
+# i_monsters = load_images("monsters.png")
+# i_fires = load_images("fires.png")
+# i_explosion = load_images("explosion.png")[0]
+
+i_abomb, i_afire, i_bomb, i_floor, i_rock = load_asset("items.png")[0]
+i_walls = load_asset("walls.png")[0]
+i_players = load_asset("players.png")
+i_monsters = load_asset("monsters.png")
+i_fires = load_asset("fires.png")
+i_explosion = load_asset("explosion.png")[0]
 
 fire_id  = -1
 floor_id =  0
