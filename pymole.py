@@ -1,6 +1,4 @@
 ##!/usr/bin/env python
-import os
-
 import pygame
 from pygame.locals import *
 import numpy as np
@@ -10,68 +8,15 @@ WALL_NUMBER      = 57
 BOMB_ITEM_NUMBER = 6
 FIRE_ITEM_NUMBER = 6
 TOOTHER_NUMBER   = 2
-GHOST_NUMBER     = 2
-MONSTER_MIND     = 6 # the higher number the less often monster turns
+GHOST_NUMBER     = 0
+MONSTER_MIND     = 6  # the higher number the less often monster turns
+BOMB_TIMER       = 40 # it takes 40 frames bomb to explode
+PLAN_SIZE        = (15,11)
 
 def load_images(fname):
  images = pygame.image.load(fname).convert_alpha()
  w, h = images.get_size()
  return np.array([[images.subsurface((i*fsize, j*fsize, fsize, fsize)) for j in range(h//fsize)] for i in range(w//fsize)])
-
-def load_asset(fname):
-	return load_images('assets/' + fname)
-
-pygame.init()
-screen = pygame.display.set_mode((640, 480))
-clock = pygame.time.Clock()
-#pygamekeys = {key: value for key, value in pygame.locals.__dict__.items() if key.startswith('K_')}
-
-# i_abomb, i_afire, i_bomb, i_floor, i_rock = load_images("items.png")[0]
-# i_walls = load_images("walls.png")[0]
-# i_players = load_images("players.png")
-# i_monsters = load_images("monsters.png")
-# i_fires = load_images("fires.png")
-# i_explosion = load_images("explosion.png")[0]
-
-i_abomb, i_afire, i_bomb, i_floor, i_rock = load_asset("items.png")[0]
-i_walls = load_asset("walls.png")[0]
-i_players = load_asset("players.png")
-i_monsters = load_asset("monsters.png")
-i_fires = load_asset("fires.png")
-i_explosion = load_asset("explosion.png")[0]
-
-fire_id  = -1
-floor_id =  0
-item_id  =  1 # 1 and higher block fire
-wall_id  =  2 # 2 and higher players and fire
-rock_id  =  3 # 3 and higher block ghosts
-bomb_id  =  4
-#wall_frames = (len(i_walls)-1)*2
-wall_frames = len(i_walls)*2
-explosion_frames = len(i_explosion)*2
-bomb_timer  = 40
-fire_frames = i_fires.shape[1]*3 # how namy frames takes explosion
-###
-# Init plan
-###
-
-plan = np.zeros((15,11), dtype=int)
-plan[[0, -1],:] = rock_id
-plan[:,[0, -1]] = rock_id
-plan[0::2,0::2] = rock_id
-plan_phase = np.zeros_like(plan, dtype=int) # phase of fire, explosion, collapsing wall, bomb to explode
-plan_data  = np.zeros_like(plan, dtype=int) # strength of bomb, orientation of fire
-
-wall_possible = np.zeros_like(plan, dtype=bool)
-wall_possible[3:-3,:] = True
-wall_possible[:,3:-3] = True
-wall_possible[plan!=0] = False
-wall_positiones=np.random.choice(np.where(wall_possible.flat)[0], WALL_NUMBER+TOOTHER_NUMBER+GHOST_NUMBER, replace=False)
-monster_positiones = np.unravel_index(wall_positiones[:TOOTHER_NUMBER+GHOST_NUMBER], plan.shape)
-wall_positiones = wall_positiones[TOOTHER_NUMBER+GHOST_NUMBER:]
-plan.flat[wall_positiones] = wall_id
-plan_data.flat[wall_positiones[:BOMB_ITEM_NUMBER]]  = 1 # hide items under some of the walls
-plan_data.flat[wall_positiones[-FIRE_ITEM_NUMBER:]] = 2
 
 ###
 # Player class defines players behaviour
@@ -94,9 +39,10 @@ class Player:
     self.my_bombs = []
 
   def step(self, pressed_keys):
+    in_pressed_keys = lambda kset: len(kset & pressed_keys) > 0
     pos_in_plan = (self.posx+self.grid//2)//self.grid, (self.posy+self.grid//2)//self.grid
 
-    if plan[pos_in_plan] == item_id:
+    if plan[pos_in_plan] == item_id: # Pick up an item
       if plan_data[pos_in_plan] == 1:
         self.max_bombs +=1
       else:
@@ -105,7 +51,7 @@ class Player:
     
     killing_monster = len([m for m in monsters if abs(self.posx*m.grid-m.posx*self.grid)+abs(self.posy*m.grid-m.posy*self.grid) < m.grid*self.grid//2])
 
-    if (plan[pos_in_plan] == fire_id or killing_monster) and (self.orientation != 4 or self.phase == 0): # player is hit by fire
+    if (plan[pos_in_plan] == fire_id or killing_monster) and (self.orientation != 4 or self.phase == 0): # Player is hit by fire or monster?
       self.orientation = 4 
       self.phase = 0
     elif self.orientation == 4: # player is already dying
@@ -115,17 +61,18 @@ class Player:
         return
     else:
       self.my_bombs = [bomb_pos for bomb_pos in self.my_bombs if plan[bomb_pos] == bomb_id]
-      if len(self.my_bombs) < self.max_bombs and pressed_keys[self.kbomb] and not plan[pos_in_plan]:
+      if len(self.my_bombs) < self.max_bombs and in_pressed_keys(self.kbomb) and not plan[pos_in_plan]: # Drop a bomb?
         self.my_bombs.append(pos_in_plan)
         plan[pos_in_plan] = bomb_id
-        plan_phase[pos_in_plan] = bomb_timer
+        plan_phase[pos_in_plan] = BOMB_TIMER
         plan_data[pos_in_plan] = self.bomb_range
+        pressed_keys -= self.kbomb
       
-      stepx = pressed_keys[self.kright] - pressed_keys[self.kleft]
-      stepy = pressed_keys[self.kdown]  - pressed_keys[self.kup]
+      # The rest of the methods takes care of player movement
+      stepx = in_pressed_keys(self.kright) - in_pressed_keys(self.kleft)
+      stepy = in_pressed_keys(self.kdown)  - in_pressed_keys(self.kup)
       if stepx or stepy: 
         self.phase=(self.phase+1) % self.animation_frames
-        ##self.orientation = 0 if stepy > 0 else 3 if  stepy < 0 else (stepx>0)+1
         self.orientation = 2 if stepx > 0 else 1 if  stepx < 0 else (stepy<0)*3
       else:
         self.phase=0
@@ -144,10 +91,8 @@ class Player:
         stepy += np.sign(np.sum(blocked_corners  *[1,-1]))
       if (stepx or stepy) and not (blocked_corners.sum() == 2 and np.all(blocked_corners==blocked_corners.T)): 
         # We are making step AND NOT through blocks touching by corners (i.e. blocked_corners is not diagonal)
-#        self.phase=(self.phase+1) % self.animation_frames
         self.posx += stepx
         self.posy += stepy
-        ##self.orientation = 0 if stepy > 0 else 3 if  stepy < 0 else (stepx>0)+1
         self.orientation = 2 if stepx > 0 else 1 if  stepx < 0 else (stepy<0)*3
 
     screen.blit(self.sprites[self.orientation*4+self.phase//2], (self.posx*fsize//self.grid, self.posy*fsize//self.grid-fsize//2))
@@ -193,107 +138,170 @@ class Monster:
       self.posy += self.stepy
     screen.blit(self.sprites[self.phase//2], (self.posx*fsize//self.grid, self.posy*fsize//self.grid-fsize//2))
 
-monsters = [Monster(pos, ghost=i//TOOTHER_NUMBER) for i,pos in enumerate(zip(*monster_positiones))]
-players =  [Player((1,1),                  (K_UP, K_DOWN, K_LEFT, K_RIGHT, K_RALT), i_players[0]),
-            Player(plan.shape-np.array(2), (K_w,  K_s,    K_a,    K_d,     K_c),    i_players[1]),
-            Player((1, plan.shape[1]-2),   (K_t,  K_g,    K_f,    K_h,     K_n),    i_players[2]),
-            Player((plan.shape[0]-2, 1),   (K_i,  K_k,    K_j,    K_l,     K_PERIOD),    i_players[3]),]
+pygame.init()
+screen = pygame.display.set_mode((PLAN_SIZE[0]*32, (PLAN_SIZE[1]-1)*32))
+clock = pygame.time.Clock()
+pygame.joystick.init()
+joystick_count = pygame.joystick.get_count()
+joysticks = [pygame.joystick.Joystick(i) for i in range(joystick_count)]
+for joystick in joysticks:
+  joystick.init()
+
+#pygamekeys = {key: value for key, value in pygame.locals.__dict__.items() if key.startswith('K_')}
+
+i_abomb, i_afire, i_bomb, i_floor, i_rock = load_images("items.png")[0]
+i_walls = load_images("walls.png")[0]
+i_players = load_images("players.png")
+i_monsters = load_images("monsters.png")
+i_fires = load_images("fires.png")
+i_explosion = load_images("explosion.png")[0]
+pygame.display.set_icon(i_bomb)
+pygame.display.set_caption("PyMole")
+
+fire_id  = -1
+floor_id =  0
+item_id  =  1 # 1 and higher block fire
+wall_id  =  2 # 2 and higher players and fire
+rock_id  =  3 # 3 and higher block ghosts
+bomb_id  =  4
+wall_frames = len(i_walls)*2
+explosion_frames = len(i_explosion)*2
+fire_frames = i_fires.shape[1]*3 # how namy frames takes explosion
 
 game_over = False
 while not game_over:
-    for event in pygame.event.get():
-        if event.type == pygame.locals.QUIT:
-            game_over = True
-   
-    pressed_keys = pygame.key.get_pressed()
-    #print([k for k in pygamekeys.keys() if k != "K_LAST" and pressed_keys[pygamekeys[k]]])
+   # Init plan
+  plan = np.zeros(PLAN_SIZE, dtype=int)
+  plan[[0, -1],:] = rock_id
+  plan[:,[0, -1]] = rock_id
+  plan[0::2,0::2] = rock_id
+  plan_phase = np.zeros_like(plan, dtype=int) # phase of fire, explosion, collapsing wall, bomb to explode
+  plan_data  = np.zeros_like(plan, dtype=int) # strength of bomb, orientation of fire
 
-    for x, y in zip(*np.nonzero(np.logical_and(plan == bomb_id, plan_phase == 0))): # bombs to explode
-              hit_fields = []
-              bomb_range = plan_data[x,y]
-              blocking_fire = np.nonzero(plan[:,y] > 0)[0]
-              h_fire_range = range(max(x-bomb_range,   blocking_fire[blocking_fire < x][-1]+1),
-                                   min(x+bomb_range+1, blocking_fire[blocking_fire > x][0]))
-              plan[h_fire_range,y]=fire_id
-              plan_phase[h_fire_range,y]=0
-              plan_data[h_fire_range,y]=3
-              if h_fire_range.start == x-bomb_range: 
-                plan_data[h_fire_range.start,y] = 5
-              else:
-                hit_fields.append((h_fire_range.start-1,y))
-              if h_fire_range.stop == x+bomb_range+1: 
-                plan_data[h_fire_range.stop-1,y] = 4
-              else:
-                hit_fields.append((h_fire_range.stop,y))
+  wall_possible = np.zeros_like(plan, dtype=bool)
+  wall_possible[3:-3,:] = True
+  wall_possible[:,3:-3] = True
+  wall_possible[plan!=0] = False
+  wall_positiones=np.random.choice(np.where(wall_possible.flat)[0], WALL_NUMBER+TOOTHER_NUMBER+GHOST_NUMBER, replace=False)
+  monster_positiones = np.unravel_index(wall_positiones[:TOOTHER_NUMBER+GHOST_NUMBER], plan.shape)
+  wall_positiones = wall_positiones[TOOTHER_NUMBER+GHOST_NUMBER:]
+  plan.flat[wall_positiones] = wall_id
+  plan_data.flat[wall_positiones[:BOMB_ITEM_NUMBER]]  = 1 # hide items under some of the walls
+  plan_data.flat[wall_positiones[-FIRE_ITEM_NUMBER:]] = 2
 
-              blocking_fire = np.nonzero(plan[x,:] > 0)[0]
-              v_fire_range = range(max(y-bomb_range,   blocking_fire[blocking_fire < y][-1]+1),
-                                   min(y+bomb_range+1, blocking_fire[blocking_fire > y][0]))
-              plan[x, v_fire_range]=fire_id
-              plan_phase[x, v_fire_range]=0
-              plan_data[x, v_fire_range]=0
-              if v_fire_range.start == y-bomb_range: 
-                plan_data[x,v_fire_range.start] = 1
-              else:
-                hit_fields.append((x,v_fire_range.start-1))
-              if v_fire_range.stop == y+bomb_range+1: 
-                plan_data[x,v_fire_range.stop-1] = 2
-              else:
-                hit_fields.append((x,v_fire_range.stop))
+  # Create players and monsters
+  monsters = [Monster(pos, ghost=i//TOOTHER_NUMBER) for i,pos in enumerate(zip(*monster_positiones))]
+  players =  [Player(plan.shape-np.array(2), ({K_UP, (0, 0, -1)}, {K_DOWN, (0, 0, 1)},  {K_LEFT, (0, 1, -1)}, {K_RIGHT, (0, 1, 1)}, {K_RCTRL, (0, 11)}), i_players[0]),
+              Player((1,1),                  ({K_w,  (0, 3)},     {K_s, (0, 1)},        {K_a, (0, 4)},        {K_d, (0, 0)},        {K_c, (0, 10)}),     i_players[1]),
+              Player((1, plan.shape[1]-2),   ({K_t, (1, 0, -1)},  {K_g, (1, 0, 1)},     {K_f, (1, 1, -1)},    {K_h, (1, 1, 1)},     {K_n, (1, 8)}),      i_players[2]),
+              Player((plan.shape[0]-2, 1),   ({K_i, (1, 0)},      {K_k, (1, 2)},        {K_j, (1, 3)},        {K_l, (1, 1)},        {K_PERIOD, (1, 9)}), i_players[3]),]
 
-              plan[x,y] = fire_id
-              plan_phase[x, y]=0
-              plan_data[x, y]=6
+  pressed_keys = set()
+  # Keep playing untill there is only one player left
+  while not game_over and len(players) > 1:
+      for event in pygame.event.get():
+#          print(event)
+          if event.type == pygame.locals.QUIT:
+              game_over = True
+          elif event.type == pygame.KEYDOWN:
+            pressed_keys.add(event.key)
+          elif event.type == pygame.KEYUP:
+            pressed_keys.discard(event.key)
+          elif event.type == pygame.JOYBUTTONDOWN:
+            pressed_keys.add((event.joy, event.button))
+          elif event.type == pygame.JOYBUTTONUP:
+            pressed_keys.discard((event.joy, event.button))
+          elif event.type == pygame.JOYAXISMOTION:
+            position = round(event.value)
+            pressed_keys -= {(event.joy, event.axis, -1), (event.joy, event.axis, 1)}
+            if position:
+              pressed_keys.add((event.joy, event.axis, position))
 
-              if hit_fields:
-                plan_phase[tuple(zip(*hit_fields))] = 1
-                  
-    for x, row in enumerate(plan):
-       for y,  field in enumerate(row):
-          tile = i_floor
-          if   field == rock_id:
-            tile = i_rock
+      # explode bombs that run out of time
+      for x, y in zip(*np.nonzero(np.logical_and(plan == bomb_id, plan_phase == 0))):
+                hit_fields = []
+                bomb_range = plan_data[x,y]
+                blocking_fire = np.nonzero(plan[:,y] > 0)[0]
+                h_fire_range = range(max(x-bomb_range,   blocking_fire[blocking_fire < x][-1]+1),
+                                     min(x+bomb_range+1, blocking_fire[blocking_fire > x][0]))
+                plan[h_fire_range,y]=fire_id
+                plan_phase[h_fire_range,y]=0
+                plan_data[h_fire_range,y]=3
+                if h_fire_range.start == x-bomb_range: 
+                  plan_data[h_fire_range.start,y] = 5
+                else:
+                  hit_fields.append((h_fire_range.start-1,y))
+                if h_fire_range.stop == x+bomb_range+1: 
+                  plan_data[h_fire_range.stop-1,y] = 4
+                else:
+                  hit_fields.append((h_fire_range.stop,y))
 
-          elif field == wall_id:
-            if plan_phase[x,y] == 0: # wall is intact
-              tile = i_walls[0]
-            elif plan_phase[x,y] == wall_frames: # wall has just completely collapsed
-              if plan_data[x,y] != 0: # wall was hidding an item
-                plan[x,y] = item_id
-                plan_phase[x,y] = 0
-                tile = i_abomb if plan_data[x,y] == 1 else i_afire
+                blocking_fire = np.nonzero(plan[x,:] > 0)[0]
+                v_fire_range = range(max(y-bomb_range,   blocking_fire[blocking_fire < y][-1]+1),
+                                     min(y+bomb_range+1, blocking_fire[blocking_fire > y][0]))
+                plan[x, v_fire_range]=fire_id
+                plan_phase[x, v_fire_range]=0
+                plan_data[x, v_fire_range]=0
+                if v_fire_range.start == y-bomb_range: 
+                  plan_data[x,v_fire_range.start] = 1
+                else:
+                  hit_fields.append((x,v_fire_range.start-1))
+                if v_fire_range.stop == y+bomb_range+1: 
+                  plan_data[x,v_fire_range.stop-1] = 2
+                else:
+                  hit_fields.append((x,v_fire_range.stop))
+
+                plan[x,y] = fire_id
+                plan_phase[x, y]=0
+                plan_data[x, y]=6
+
+                if hit_fields: # explode bombs, items and walls hit by this bomb
+                  plan_phase[tuple(zip(*hit_fields))] = 1
+                    
+      # Draw and change state of all the fields in the plan
+      for x, row in enumerate(plan):
+        for y,  field in enumerate(row):
+            tile = i_floor
+            if   field == rock_id:
+              tile = i_rock
+            elif field == bomb_id:
+              plan_phase[x,y] -= 1
+              tile = i_bomb
+            elif field == fire_id:
+              plan_phase[x,y] += 1
+              if plan_phase[x,y] < fire_frames: # explosion is not over
+                tile = i_fires[plan_data[x,y], plan_phase[x,y]*i_fires.shape[1]//fire_frames]
               else:
                 plan[x,y] = floor_id
-                tile = i_floor
-            else: # wall is colapsing
-              tile = i_floor if plan_data[x,y] == 0 else i_abomb if plan_data[x,y] == 1 else i_afire
-              screen.blit(tile, (x*fsize, y*fsize-16))
-              tile = i_walls[plan_phase[x,y]*len(i_walls)//wall_frames]
-              plan_phase[x,y] += 1
-
-          elif field == item_id:
-            tile = i_abomb if plan_data[x,y] == 1 else i_afire
-            if plan_phase[x,y] == explosion_frames: # item has just completely burned
-              plan[x,y] = floor_id
-              tile = i_floor
-            elif plan_phase[x,y] > 0: # item is burning
-              screen.blit(tile if plan_phase[x,y] < explosion_frames*2//3 else i_floor, (x*fsize, y*fsize-16))
-              tile = i_explosion[plan_phase[x,y]*len(i_explosion)//explosion_frames]
-              plan_phase[x,y] += 1            
-          elif field == bomb_id:
-            plan_phase[x,y] -= 1
-            tile = i_bomb
-          elif field == fire_id:
-            plan_phase[x,y] += 1
-            if plan_phase[x,y] < fire_frames: # explosion is not over
-              tile = i_fires[plan_data[x,y], plan_phase[x,y]*i_fires.shape[1]//fire_frames]
-            else:
-              plan[x,y] = floor_id
-              tile = i_floor
-          screen.blit(tile, (x*fsize, y*fsize-16))
-
-    for p in monsters+players:
-      p.step(pressed_keys)
-      
-    pygame.display.flip()
-    clock.tick(15)
+                #tile = i_floor
+            elif field == wall_id:
+              if plan_phase[x,y] == 0: # wall is intact
+                tile = i_walls[0]
+              elif plan_phase[x,y] == wall_frames: # wall has just completely collapsed
+                plan[x,y] = item_id if plan_data[x,y] != 0 else floor_id # Was the wall hidding an item?
+                plan_phase[x,y] = 0
+                #tile = i_abomb if plan_data[x,y] == 1 else i_afire
+              else: # wall is colapsing
+                tile = i_floor if plan_data[x,y] == 0 else i_abomb if plan_data[x,y] == 1 else i_afire
+                screen.blit(tile, (x*fsize, y*fsize-16))
+                tile = i_walls[plan_phase[x,y]*len(i_walls)//wall_frames]
+                plan_phase[x,y] += 1
+            
+            if plan[x,y] == item_id:
+              if plan_phase[x,y] == explosion_frames: # item has just completely burned
+                plan[x,y] = floor_id
+                #tile = i_floor
+              else: 
+                tile = i_abomb if plan_data[x,y] == 1 else i_afire
+                if plan_phase[x,y] > 0: # item is burning
+                  screen.blit(tile if plan_phase[x,y] < explosion_frames*2//3 else i_floor, (x*fsize, y*fsize-16))
+                  tile = i_explosion[plan_phase[x,y]*len(i_explosion)//explosion_frames]
+                  plan_phase[x,y] += 1            
+            screen.blit(tile, (x*fsize, y*fsize-16))
+      if len(players) < 2:
+        break
+      for p in monsters+players:
+        p.step(pressed_keys)
+        
+      pygame.display.flip()
+      clock.tick(15)
