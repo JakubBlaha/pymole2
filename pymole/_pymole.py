@@ -14,6 +14,24 @@ MONSTER_MIND = 6  # the higher number the less often monster turns
 BOMB_TIMER = 40  # it takes 40 frames bomb to explode
 PLAN_SIZE = (15, 11)
 ASSETS_PATH = "./assets"
+PLAYER_CONTROLS = [
+    (
+        {K_UP, (0, 0, -1)},
+        {K_DOWN, (0, 0, 1)},
+        {K_LEFT, (0, 1, -1)},
+        {K_RIGHT, (0, 1, 1)},
+        {K_RCTRL, (0, 11)},
+    ),
+    ({K_w, (0, 3)}, {K_s, (0, 1)}, {K_a, (0, 4)}, {K_d, (0, 0)}, {K_c, (0, 10)},),
+    (
+        {K_t, (1, 0, -1)},
+        {K_g, (1, 0, 1)},
+        {K_f, (1, 1, -1)},
+        {K_h, (1, 1, 1)},
+        {K_n, (1, 8)},
+    ),
+    ({K_i, (1, 0)}, {K_k, (1, 2)}, {K_j, (1, 3)}, {K_l, (1, 1)}, {K_PERIOD, (1, 9)},),
+]
 
 package_path = os.path.dirname(__file__)
 
@@ -237,6 +255,7 @@ class Monster:
             ),
         )
 
+
 pygame.init()
 screen = pygame.display.set_mode(
     (PLAN_SIZE[0] * 32, (PLAN_SIZE[1] - 1) * 32)
@@ -306,51 +325,17 @@ while not game_over:
         Monster(pos, ghost=int(i >= TOOTHER_NUMBER))
         for i, pos in enumerate(zip(*monster_positiones))
     ]
+
+    _player_positions = [
+        plan.shape - np.array(2),
+        (1, 1),
+        (1, plan.shape[1] - 2),
+        (plan.shape[0] - 2, 1),
+    ]
+
     players = [
-        Player(
-            plan.shape - np.array(2),
-            (
-                {K_UP, (0, 0, -1)},
-                {K_DOWN, (0, 0, 1)},
-                {K_LEFT, (0, 1, -1)},
-                {K_RIGHT, (0, 1, 1)},
-                {K_RCTRL, (0, 11)},
-            ),
-            i_players[0],
-        ),
-        Player(
-            (1, 1),
-            (
-                {K_w, (0, 3)},
-                {K_s, (0, 1)},
-                {K_a, (0, 4)},
-                {K_d, (0, 0)},
-                {K_c, (0, 10)},
-            ),
-            i_players[1],
-        ),
-        Player(
-            (1, plan.shape[1] - 2),
-            (
-                {K_t, (1, 0, -1)},
-                {K_g, (1, 0, 1)},
-                {K_f, (1, 1, -1)},
-                {K_h, (1, 1, 1)},
-                {K_n, (1, 8)},
-            ),
-            i_players[2],
-        ),
-        Player(
-            (plan.shape[0] - 2, 1),
-            (
-                {K_i, (1, 0)},
-                {K_k, (1, 2)},
-                {K_j, (1, 3)},
-                {K_l, (1, 1)},
-                {K_PERIOD, (1, 9)},
-            ),
-            i_players[3],
-        ),
+        Player(pos, keys, sprites)
+        for pos, keys, sprites in zip(_player_positions, PLAYER_CONTROLS, i_players)
     ]
 
     pressed_keys = set()
