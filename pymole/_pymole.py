@@ -15,6 +15,8 @@ BOMB_TIMER = 40  # it takes 40 frames bomb to explode
 PLAN_SIZE = (15, 11)
 ASSETS_PATH = "./assets"
 
+package_path = os.path.dirname(__file__)
+
 
 def load_images(fname):
     images = pygame.image.load(fname).convert_alpha()
@@ -31,7 +33,8 @@ def load_images(fname):
 
 
 def load_asset(fname):
-    path = os.path.join(ASSETS_PATH, fname)
+    assets_path = os.path.join(package_path, ASSETS_PATH)
+    path = os.path.join(assets_path, fname)
     return load_images(path)
 
 
@@ -233,7 +236,6 @@ class Monster:
                 self.posy * fsize // self.grid - fsize // 2,
             ),
         )
-
 
 pygame.init()
 screen = pygame.display.set_mode(
