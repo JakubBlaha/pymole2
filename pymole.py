@@ -8,7 +8,7 @@ WALL_NUMBER      = 57
 BOMB_ITEM_NUMBER = 6
 FIRE_ITEM_NUMBER = 6
 TOOTHER_NUMBER   = 2
-GHOST_NUMBER     = 2
+GHOST_NUMBER     = 0
 MONSTER_MIND     = 6  # the higher number the less often monster turns
 BOMB_TIMER       = 40 # it takes 40 frames bomb to explode
 PLAN_SIZE        = (15,11)
@@ -139,7 +139,7 @@ class Monster:
     screen.blit(self.sprites[self.phase//2], (self.posx*fsize//self.grid, self.posy*fsize//self.grid-fsize//2))
 
 pygame.init()
-screen = pygame.display.set_mode((PLAN_SIZE[0]*32, (PLAN_SIZE[1]-1)*32), pygame.FULLSCREEN)
+screen = pygame.display.set_mode((PLAN_SIZE[0]*32, (PLAN_SIZE[1]-1)*32))
 clock = pygame.time.Clock()
 pygame.joystick.init()
 joystick_count = pygame.joystick.get_count()
@@ -155,7 +155,6 @@ i_players = load_images("players.png")
 i_monsters = load_images("monsters.png")
 i_fires = load_images("fires.png")
 i_explosion = load_images("explosion.png")[0]
-i_bombs = load_images("bombs.png")[0]
 pygame.display.set_icon(i_bomb)
 pygame.display.set_caption("PyMole")
 
@@ -183,7 +182,7 @@ while not game_over:
   wall_possible[3:-3,:] = True
   wall_possible[:,3:-3] = True
   wall_possible[plan!=0] = False
-  wall_positiones=np.random.choice(np.where(wall_possible.flat)[0], min(wall_possible.sum(), WALL_NUMBER+TOOTHER_NUMBER+GHOST_NUMBER), replace=False)
+  wall_positiones=np.random.choice(np.where(wall_possible.flat)[0], WALL_NUMBER+TOOTHER_NUMBER+GHOST_NUMBER, replace=False)
   monster_positiones = np.unravel_index(wall_positiones[:TOOTHER_NUMBER+GHOST_NUMBER], plan.shape)
   wall_positiones = wall_positiones[TOOTHER_NUMBER+GHOST_NUMBER:]
   plan.flat[wall_positiones] = wall_id
@@ -191,7 +190,7 @@ while not game_over:
   plan_data.flat[wall_positiones[-FIRE_ITEM_NUMBER:]] = 2
 
   # Create players and monsters
-  monsters = [Monster(pos, ghost=int(i>=TOOTHER_NUMBER)) for i,pos in enumerate(zip(*monster_positiones))]
+  monsters = [Monster(pos, ghost=i//TOOTHER_NUMBER) for i,pos in enumerate(zip(*monster_positiones))]
   players =  [Player(plan.shape-np.array(2), ({K_UP, (0, 0, -1)}, {K_DOWN, (0, 0, 1)},  {K_LEFT, (0, 1, -1)}, {K_RIGHT, (0, 1, 1)}, {K_RCTRL, (0, 11)}), i_players[0]),
               Player((1,1),                  ({K_w,  (0, 3)},     {K_s, (0, 1)},        {K_a, (0, 4)},        {K_d, (0, 0)},        {K_c, (0, 10)}),     i_players[1]),
               Player((1, plan.shape[1]-2),   ({K_t, (1, 0, -1)},  {K_g, (1, 0, 1)},     {K_f, (1, 1, -1)},    {K_h, (1, 1, 1)},     {K_n, (1, 8)}),      i_players[2]),
@@ -266,8 +265,8 @@ while not game_over:
             if   field == rock_id:
               tile = i_rock
             elif field == bomb_id:
-              tile = i_bombs[(BOMB_TIMER-plan_phase[x,y])*len(i_bombs)//BOMB_TIMER]
               plan_phase[x,y] -= 1
+              tile = i_bomb
             elif field == fire_id:
               plan_phase[x,y] += 1
               if plan_phase[x,y] < fire_frames: # explosion is not over
