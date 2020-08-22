@@ -1,8 +1,30 @@
 ##!/usr/bin/env python
 import os
-import pygame
-from pygame.locals import *
+
 import numpy as np
+import pygame
+from pygame.locals import (
+    K_UP,
+    K_DOWN,
+    K_LEFT,
+    K_RIGHT,
+    K_RCTRL,
+    K_w,
+    K_s,
+    K_a,
+    K_d,
+    K_c,
+    K_t,
+    K_g,
+    K_f,
+    K_h,
+    K_n,
+    K_i,
+    K_k,
+    K_j,
+    K_l,
+    K_PERIOD,
+)
 
 fsize = 32
 WALL_NUMBER = 57
@@ -38,7 +60,7 @@ PLAYER_POSITIONS = [
     (PLAN_WIDTH - 2, PLAN_HEIGHT - 2),
     (1, 1),
     (1, PLAN_HEIGHT - 2),
-    (PLAN_WIDTH - 2, 1)
+    (PLAN_WIDTH - 2, 1),
 ]
 
 package_path = os.path.dirname(__file__)
