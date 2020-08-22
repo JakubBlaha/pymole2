@@ -139,7 +139,7 @@ class Monster:
     screen.blit(self.sprites[self.phase//2], (self.posx*fsize//self.grid, self.posy*fsize//self.grid-fsize//2))
 
 pygame.init()
-screen = pygame.display.set_mode((PLAN_SIZE[0]*32, (PLAN_SIZE[1]-1)*32), pygame.FULLSCREEN)
+screen = pygame.display.set_mode((PLAN_SIZE[0]*32, (PLAN_SIZE[1]-1)*32)) #, pygame.FULLSCREEN)
 clock = pygame.time.Clock()
 pygame.joystick.init()
 joystick_count = pygame.joystick.get_count()
