@@ -12,7 +12,9 @@ TOOTHER_NUMBER = 2
 GHOST_NUMBER = 2
 MONSTER_MIND = 6  # the higher number the less often monster turns
 BOMB_TIMER = 40  # it takes 40 frames bomb to explode
-PLAN_SIZE = (15, 11)
+PLAN_WIDTH = 15
+PLAN_HEIGHT = 11
+PLAN_SIZE = PLAN_WIDTH, PLAN_HEIGHT
 ASSETS_PATH = "./assets"
 PLAYER_CONTROLS = [
     (
@@ -31,6 +33,12 @@ PLAYER_CONTROLS = [
         {K_n, (1, 8)},
     ),
     ({K_i, (1, 0)}, {K_k, (1, 2)}, {K_j, (1, 3)}, {K_l, (1, 1)}, {K_PERIOD, (1, 9)},),
+]
+PLAYER_POSITIONS = [
+    (PLAN_WIDTH - 2, PLAN_HEIGHT - 2),
+    (1, 1),
+    (1, PLAN_HEIGHT - 2),
+    (PLAN_WIDTH - 2, 1)
 ]
 
 package_path = os.path.dirname(__file__)
@@ -326,16 +334,9 @@ while not game_over:
         for i, pos in enumerate(zip(*monster_positiones))
     ]
 
-    _player_positions = [
-        plan.shape - np.array(2),
-        (1, 1),
-        (1, plan.shape[1] - 2),
-        (plan.shape[0] - 2, 1),
-    ]
-
     players = [
         Player(pos, keys, sprites)
-        for pos, keys, sprites in zip(_player_positions, PLAYER_CONTROLS, i_players)
+        for pos, keys, sprites in zip(PLAYER_POSITIONS, PLAYER_CONTROLS, i_players)
     ]
 
     pressed_keys = set()
